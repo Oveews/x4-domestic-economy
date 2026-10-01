@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+dist/
+.venv/
+schemas/
+game-reference/
+*.log
+*.gz

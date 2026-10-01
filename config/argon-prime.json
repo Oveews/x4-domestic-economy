@@ -1,0 +1,24 @@
+{
+  "extension_id": "oveews_domestic_economy",
+  "version": 1,
+  "enabled": true,
+  "sector_macro": "cluster_14_sector001_macro",
+  "station_name": "Argon Prime Orbital Exchange",
+  "consumption_seconds": 900,
+  "refresh_seconds": 60,
+  "buffer_hours": 4,
+  "budget_credits": 20000000,
+  "development_enabled": false,
+  "development_period_seconds": 28800,
+  "development_duration_seconds": 7200,
+  "development_multiplier": 3,
+  "wares": [
+    {"id": "foodrations", "per_hour": 600, "development": false},
+    {"id": "medicalsupplies", "per_hour": 150, "development": false},
+    {"id": "energycells", "per_hour": 1500, "development": false},
+    {"id": "hullparts", "per_hour": 150, "development": true},
+    {"id": "claytronics", "per_hour": 50, "development": true},
+    {"id": "microchips", "per_hour": 50, "development": false},
+    {"id": "advancedelectronics", "per_hour": 20, "development": false}
+  ]
+}

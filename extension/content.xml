@@ -1,0 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
+<content id="oveews_domestic_economy" name="Domestic Economy — Argon Prime Prototype" description="Experimental physical civilian demand sink for vanilla X4." author="Oveews" version="1" date="2026-10-01" save="true" enabled="true">
+  <dependency version="900" />
+</content>

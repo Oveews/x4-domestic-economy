@@ -1,0 +1,211 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mdscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd" name="ODE_ArgonPrime">
+  <cues>
+    <library name="Config">
+      <actions>
+        <set_value name="$Enabled" exact="true" />
+        <set_value name="$Budget" exact="20000000Cr" />
+        <set_value name="$DevelopmentEnabled" exact="false" />
+      </actions>
+    </library>
+    <library name="Refresh">
+      <actions>
+        <include_actions ref="Config" />
+        <do_if value="$Station.exists and not $Station.iswreck and $Station.owner == faction.argon">
+          <do_if value="$Enabled and $Station.money lt $Budget">
+            <transfer_money from="faction.ownerless" to="$Station" amount="$Budget - $Station.money" />
+          </do_if>
+          <set_value name="$Unloading" exact="table[]" />
+          <do_for_each name="$Deal" in="$Transfers.keys.list">
+            <do_if value="not $Deal.exists">
+              <remove_value name="$Transfers.{$Deal}" />
+            </do_if>
+            <do_else>
+              <set_value name="$Unloading.{$Transfers.{$Deal}}" exact="true" />
+            </do_else>
+          </do_for_each>
+          <do_for_each name="$W" in="$Wares">
+            <set_value name="$Ware" exact="$W.$Ware" />
+            <do_if value="not $Unloading.{$Ware}?">
+              <set_value name="$Stock" exact="$Station.cargo.{$Ware}.count" />
+              <set_value name="$Desired" exact="[0, $W.$Target - $Stock].max" />
+              <set_value name="$Price" exact="($Ware.minprice + ($Ware.maxprice - $Ware.minprice) * (0.2 + 0.6 * (1 - [1.0, $Stock / ($W.$Target * 1.0)].min)))" />
+              <set_value name="$Price" exact="(($Price / 1Cr)i) * 1Cr" />
+              <do_if value="$W.$Offer.exists">
+                <set_value name="$Reserved" exact="[0, $W.$Offer.offeramount - $W.$Offer.amount].max" />
+                <update_trade trade="$W.$Offer" amount="if $Enabled then [0, $Desired - $Reserved].max else 0" desiredamount="if $Enabled then $Desired else 0" price="$Price" />
+              </do_if>
+              <do_elseif value="$Enabled and $Desired gt 0">
+                <create_trade_offer name="$W.$Offer" object="$Station" buyer="$Station" ware="$Ware" amount="$Desired" desiredamount="$Desired" price="$Price" virtual="false" virtualmoney="false" playeronly="false" />
+              </do_elseif>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <do_elseif value="$Station.exists and not $Station.iswreck">
+          <do_for_each name="$W" in="$Wares">
+            <do_if value="$W.$Offer.exists">
+              <remove_trade_offer object="$Station" tradeoffer="$W.$Offer" />
+              <set_value name="$W.$Offer" exact="null" />
+            </do_if>
+          </do_for_each>
+        </do_elseif>
+      </actions>
+    </library>
+    <library name="Consume">
+      <actions>
+        <include_actions ref="Config" />
+        <do_if value="$Enabled and $Station.exists and not $Station.iswreck and $Station.owner == faction.argon">
+          <set_value name="$Elapsed" exact="player.age - $Started" />
+          <set_value name="$Phase" exact="$Elapsed % 28800s" />
+          <set_value name="$Development" exact="$DevelopmentEnabled and $Elapsed ge 28800s and $Phase lt 7200s" />
+          <do_for_each name="$W" in="$Wares">
+            <set_value name="$Ware" exact="$W.$Ware" />
+            <set_value name="$Rate" exact="$W.$Rate * (if $Development and $W.$Development then 3 else 1)" />
+            <set_value name="$Due" exact="$W.$Carry + $Rate * 900.0 / 3600" />
+            <set_value name="$Whole" exact="($Due)i" />
+            <set_value name="$W.$Carry" exact="$Due - $Whole" />
+            <set_value name="$Stock" exact="$Station.cargo.{$Ware}.count" />
+            <set_value name="$Take" exact="[$Stock, $Whole].min" />
+            <remove_cargo object="$Station" ware="$Ware" exact="$Take" result="$Removed" />
+            <debug_text text="'[ODE] tick ware=%s stock=%s removed=%s unmet=%s development=%s'.[$Ware.id,$Stock,$Removed,$Whole - $Removed,$Development]" />
+          </do_for_each>
+        </do_if>
+        <do_if value="$Station.exists and not $Station.iswreck and $Station.owner != faction.argon">
+          <debug_text text="'[ODE] suspended: exchange owner changed; no funding or consumption'" />
+        </do_if>
+        <include_actions ref="Refresh" />
+      </actions>
+    </library>
+    <cue name="Init" namespace="this">
+      <delay exact="10s" />
+      <actions>
+        <include_actions ref="Config" />
+        <set_value name="$Station" exact="null" />
+        <set_value name="$Wares" exact="[]" />
+        <set_value name="$Transfers" exact="table[]" />
+        <set_value name="$Started" exact="player.age" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.foodrations" />
+        <set_value name="$W.$Rate" exact="600" />
+        <set_value name="$W.$Target" exact="2400" />
+        <set_value name="$W.$Development" exact="false" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.medicalsupplies" />
+        <set_value name="$W.$Rate" exact="150" />
+        <set_value name="$W.$Target" exact="600" />
+        <set_value name="$W.$Development" exact="false" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.energycells" />
+        <set_value name="$W.$Rate" exact="1500" />
+        <set_value name="$W.$Target" exact="6000" />
+        <set_value name="$W.$Development" exact="false" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.hullparts" />
+        <set_value name="$W.$Rate" exact="150" />
+        <set_value name="$W.$Target" exact="600" />
+        <set_value name="$W.$Development" exact="true" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.claytronics" />
+        <set_value name="$W.$Rate" exact="50" />
+        <set_value name="$W.$Target" exact="200" />
+        <set_value name="$W.$Development" exact="true" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.microchips" />
+        <set_value name="$W.$Rate" exact="50" />
+        <set_value name="$W.$Target" exact="200" />
+        <set_value name="$W.$Development" exact="false" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <set_value name="$W" exact="table[]" />
+        <set_value name="$W.$Ware" exact="ware.advancedelectronics" />
+        <set_value name="$W.$Rate" exact="20" />
+        <set_value name="$W.$Target" exact="80" />
+        <set_value name="$W.$Development" exact="false" />
+        <set_value name="$W.$Carry" exact="0.0" />
+        <set_value name="$W.$Offer" exact="null" />
+        <append_to_list name="$Wares" exact="$W" />
+        <do_if value="$Enabled">
+          <find_sector name="$Sector" macro="macro.cluster_14_sector001_macro" />
+          <do_if value="$Sector">
+            <create_station name="$Station" macro="macro.station_gen_factory_base_01_macro" owner="faction.argon" sector="$Sector" state="componentstate.operational" constructionplan="'ode_argon_exchange'" rawname="'Argon Prime Orbital Exchange'">
+              <safepos x="30km" y="10km" z="30km" radius="15km" includeplotbox="true" />
+            </create_station>
+            <do_if value="$Station.exists">
+              <set_object_account object="$Station" />
+              <create_control_entity object="$Station" post="controlpost.manager" />
+              <add_units object="$Station" category="unitcategory.transport" mk="1" exact="10" />
+              <include_actions ref="Refresh" />
+              <debug_text text="'[ODE] created Argon Prime Orbital Exchange: %s'.[$Station]" />
+            </do_if>
+            <do_else>
+              <debug_text text="'[ODE] BLOCKED: exchange creation failed'" />
+            </do_else>
+          </do_if>
+          <do_else>
+            <debug_text text="'[ODE] BLOCKED: configured sector not found; no fallback station created'" />
+          </do_else>
+        </do_if>
+      </actions>
+      <cues>
+        <cue name="Ready">
+          <conditions>
+            <event_cue_completed cue="parent" />
+            <check_value value="$Station.exists" />
+          </conditions>
+          <cues>
+            <cue name="DeliveryStarted" instantiate="true">
+              <conditions>
+                <event_trade_started buyer="$Station" />
+              </conditions>
+              <actions>
+                <set_value name="$Transfers.{event.param}" exact="event.param.ware" />
+              </actions>
+            </cue>
+            <cue name="DeliveryCompleted" instantiate="true">
+              <conditions>
+                <event_trade_completed buyer="$Station" />
+              </conditions>
+              <actions>
+                <do_if value="$Transfers.{event.param}?">
+                  <remove_value name="$Transfers.{event.param}" />
+                </do_if>
+                <debug_text text="'[ODE] delivered ware=%s amount=%s'.[event.param.ware.id,event.param.transferredamount]" />
+                <include_actions ref="Refresh" />
+              </actions>
+            </cue>
+            <cue name="RefreshTimer">
+              <delay exact="60s" />
+              <actions>
+                <include_actions ref="Refresh" />
+                <reset_cue cue="this" />
+              </actions>
+            </cue>
+            <cue name="ConsumptionTimer">
+              <delay exact="900s" />
+              <actions>
+                <include_actions ref="Consume" />
+                <reset_cue cue="this" />
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+  </cues>
+</mdscript>
